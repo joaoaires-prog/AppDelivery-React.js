@@ -1,5 +1,5 @@
 import { BsStarFill, BsStarHalf } from "react-icons/bs";
-import Button from "../Layouts/Button";
+import Button from "./Button";
 
 const ApetitsCard = (props) => {
   return (
