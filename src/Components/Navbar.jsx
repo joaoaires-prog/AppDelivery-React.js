@@ -3,6 +3,7 @@ import { Link } from "react-scroll";
 import Button from "../Layouts/Button";
 import { AiOutlineClose, AiOutlineMenuFold } from "react-icons/ai";
 import { useState } from "react";
+import { Link as RouterLink } from "react-router-dom"; 
 
 const Navbar = () => {
   const [menu, setMenu] = useState(false);
@@ -87,7 +88,9 @@ const Navbar = () => {
               Avaliações
             </Link>
 
-            <Button title="Login" />
+            <RouterLink to="/login">
+              <Button title="Login" />
+            </RouterLink>
           </nav>
 
           <div className="md:hidden flex items-center">
@@ -99,32 +102,69 @@ const Navbar = () => {
           </div>
         </div>
 
-        {/* Menu Mobile */}
         <div
           className={`${
             menu ? "translate-x-0" : "-translate-x-full"
           } md:hidden flex flex-col absolute bg-violet-600 text-white left-0 top-20 font-semibold text-2xl text-center pt-8 pb-4 gap-8 w-full h-fit transition-transform duration-300`}
         >
-          <Link to="inicio" spy={true} smooth={true} duration={500} onClick={closeMenu}>
+          <Link
+            to="inicio"
+            spy={true}
+            smooth={true}
+            duration={500}
+            onClick={closeMenu}
+          >
             Início
           </Link>
-          <Link to="mais1cafe" spy={true} smooth={true} duration={500} onClick={closeMenu}>
+          <Link
+            to="mais1cafe"
+            spy={true}
+            smooth={true}
+            duration={500}
+            onClick={closeMenu}
+          >
             Mais1Café
           </Link>
-          <Link to="apetits" spy={true} smooth={true} duration={500} onClick={closeMenu}>
+          <Link
+            to="apetits"
+            spy={true}
+            smooth={true}
+            duration={500}
+            onClick={closeMenu}
+          >
             Apetit's
           </Link>
-          <Link to="picapau" spy={true} smooth={true} duration={500} onClick={closeMenu}>
+          <Link
+            to="picapau"
+            spy={true}
+            smooth={true}
+            duration={500}
+            onClick={closeMenu}
+          >
             Pica Pau
           </Link>
-          <Link to="sobre" spy={true} smooth={true} duration={500} onClick={closeMenu}>
+          <Link
+            to="sobre"
+            spy={true}
+            smooth={true}
+            duration={500}
+            onClick={closeMenu}
+          >
             Sobre
           </Link>
-          <Link to="avaliacoes" spy={true} smooth={true} duration={500} onClick={closeMenu}>
+          <Link
+            to="avaliacoes"
+            spy={true}
+            smooth={true}
+            duration={500}
+            onClick={closeMenu}
+          >
             Avaliações
           </Link>
 
-          <Button title="Login" />
+          <RouterLink to="/login">
+            <Button title="Login" />
+          </RouterLink>
         </div>
       </div>
     </div>
