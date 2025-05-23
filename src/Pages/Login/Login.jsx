@@ -41,7 +41,7 @@ const Login = () => {
             <input type="checkbox" />
             Lembrar de mim?
           </label>
-          <a href="#">Esqueceu a Senha?</a>
+          <a href="/Remember">Esqueceu a Senha?</a>
         </div>
 
         <button className={styles.button}>Entrar</button>
