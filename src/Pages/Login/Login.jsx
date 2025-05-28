@@ -40,33 +40,26 @@ const Login = () => {
       if (data.success) {
         setMessage("Login realizado com sucesso!");
         
-        // --- NOVIDADE AQUI: Lidando com o TOKEN JWT ---
+        
         if (data.token) {
-          // Armazene o token. localStorage é persistente, sessionStorage é para a sessão atual.
+          
           if (rememberMe) {
             localStorage.setItem('authToken', data.token);
-            // Opcional: localStorage.setItem('userData', JSON.stringify(data.data));
+        
             console.log('Token armazenado no localStorage:', data.token);
           } else {
             sessionStorage.setItem('authToken', data.token);
-            // Opcional: sessionStorage.setItem('userData', JSON.stringify(data.data));
+            
             console.log('Token armazenado no sessionStorage:', data.token);
           }
         }
-        // --- FIM DA NOVIDADE ---
 
         setEmail("");
         setPassword("");
-        
-        // Redirecionar após 1.5 segundos
+       
         setTimeout(() => {
-          // Redirecionar para dashboard ou página principal
-          // window.location.href = '/dashboard'; // exemplo com redirecionamento full page
-          // Ou se estiver usando React Router:
-          // navigate('/dashboard'); 
+         
           console.log('Redirecionando para dashboard...');
-          // Para este exemplo, vamos apenas alertar e limpar o formulário.
-          // Em um projeto real, você redirecionaria para uma rota protegida.
         }, 1500);
         
       } else {
