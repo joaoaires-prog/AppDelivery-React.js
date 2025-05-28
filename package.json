@@ -8,7 +8,9 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
+    
   },
+  
   "dependencies": {
     "@supabase/supabase-js": "^2.49.8",
     "bcrypt": "^6.0.0",

@@ -5,6 +5,7 @@ import Register from "../Pages/Register/Register";
 import Navbar from "../Components/Navbar";
 import Remember from "../Pages/Remember/remember";
 
+
 const Layout = ({ children }) => {
   const location = useLocation();
 
