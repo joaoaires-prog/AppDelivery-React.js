@@ -1,32 +1,37 @@
+"use client";
 
-"use client"
-
-import { useState, useEffect } from "react"
-import { Link, Outlet, useNavigate } from "react-router-dom"
-import { useAuth } from "../Context/AuthContext"
-import { Menu, X, Package, ArrowLeft, LogOut, User } from "lucide-react"
-import "../Styles/Admin.css"
+import { useState, useEffect } from "react";
+import { Link, Outlet, useNavigate } from "react-router-dom";
+import { useAuth } from "../Context/AuthContext";
+import { Menu, X, Package, ArrowLeft, LogOut, User } from "lucide-react";
+import "../Styles/Admin.css";
 
 export default function AdminLayout() {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { user, logout, loading } = useAuth() // Obtenha 'loading' também
-  const navigate = useNavigate()
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { user, logout, loading } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
-    console.log("AdminLayout: useEffect chamado. User:", user, "Loading:", loading); // LOG
-    // Só redireciona se terminou de carregar e não há usuário (fallback, ProtectedRoute já deveria lidar)
+    console.log(
+      "AdminLayout: useEffect chamado. User:",
+      user,
+      "Loading:",
+      loading
+    );
+
     if (!loading && !user) {
-      console.log("AdminLayout: Usuário não existe e não está carregando. Redirecionando para /login."); // LOG
+      console.log(
+        "AdminLayout: Usuário não existe e não está carregando. Redirecionando para /login."
+      );
       navigate("/login");
     }
   }, [user, loading, navigate]);
 
   const handleLogout = () => {
-    console.log("AdminLayout: Acionando logout."); // LOG
+    console.log("AdminLayout: Acionando logout.");
     logout();
-  }
+  };
 
-  // Exibe um spinner de carregamento enquanto o AuthContext está verificando o usuário
   if (loading) {
     console.log("AdminLayout: Em estado de carregamento inicial."); // LOG
     return (
@@ -39,22 +44,29 @@ export default function AdminLayout() {
     );
   }
 
-  // Se user é null após loading ser false, significa que não está logado
-  // ProtectedRoute já deveria ter feito o redirecionamento.
-  // Esta condição é mais para um fallback ou para evitar erros de renderização se 'user' for null.
   if (!user) {
-    console.log("AdminLayout: User é null após carregamento, não deveria acontecer aqui se ProtectedRoute funcionou."); // LOG
-    return null; // Não renderiza nada ou redireciona
+    console.log(
+      "AdminLayout: User é null após carregamento, não deveria acontecer aqui se ProtectedRoute funcionou."
+    ); // LOG
+    return null;
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Mobile sidebar */}
-      <div className={`fixed inset-0 z-50 lg:hidden ${sidebarOpen ? "block" : "hidden"}`}>
-        <div className="fixed inset-0 bg-black bg-opacity-25" onClick={() => setSidebarOpen(false)} />
+      <div
+        className={`fixed inset-0 z-50 lg:hidden ${
+          sidebarOpen ? "block" : "hidden"
+        }`}
+      >
+        <div
+          className="fixed inset-0 bg-black bg-opacity-25"
+          onClick={() => setSidebarOpen(false)}
+        />
         <div className="fixed inset-y-0 left-0 w-64 bg-white shadow-xl">
           <div className="flex items-center justify-between p-4 border-b">
-            <h2 className="text-lg font-semibold text-gray-900">Painel Admin</h2>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Painel Admin
+            </h2>
             <button onClick={() => setSidebarOpen(false)}>
               <X className="w-6 h-6 text-gray-500" />
             </button>
@@ -66,7 +78,9 @@ export default function AdminLayout() {
                 <User className="w-8 h-8 text-purple-600" />
                 <div>
                   <p className="font-medium text-gray-900">{user.nome}</p>
-                  <p className="text-sm text-purple-600">{user.restaurante || 'N/A'}</p>
+                  <p className="text-sm text-purple-600">
+                    {user.restaurante || "N/A"}
+                  </p>
                 </div>
               </div>
             </div>
@@ -85,7 +99,6 @@ export default function AdminLayout() {
         </div>
       </div>
 
-      {/* Desktop sidebar */}
       <div className="admin-sidebar hidden lg:block">
         <div className="flex flex-col h-full">
           <div className="admin-sidebar-header">
@@ -99,7 +112,9 @@ export default function AdminLayout() {
                 <User className="w-8 h-8 text-purple-600" />
                 <div>
                   <p className="font-medium text-gray-900">{user.nome}</p>
-                  <p className="text-sm text-purple-600">{user.restaurante || 'N/A'}</p>
+                  <p className="text-sm text-purple-600">
+                    {user.restaurante || "N/A"}
+                  </p>
                   <p className="text-xs text-gray-500">{user.email}</p>
                 </div>
               </div>
@@ -136,15 +151,18 @@ export default function AdminLayout() {
         </div>
       </div>
 
-      {/* Main content */}
       <div className="admin-content">
-        {/* Mobile header */}
         <div className="admin-mobile-header">
           <button onClick={() => setSidebarOpen(true)}>
             <Menu className="w-6 h-6 text-gray-500" />
           </button>
-          <h1 className="text-lg font-semibold text-gray-900">{user.restaurante || 'N/A'}</h1>
-          <button onClick={handleLogout} className="text-red-600 hover:text-red-700">
+          <h1 className="text-lg font-semibold text-gray-900">
+            {user.restaurante || "N/A"}
+          </h1>
+          <button
+            onClick={handleLogout}
+            className="text-red-600 hover:text-red-700"
+          >
             <LogOut className="w-6 h-6" />
           </button>
         </div>
@@ -154,5 +172,5 @@ export default function AdminLayout() {
         </main>
       </div>
     </div>
-  )
+  );
 }

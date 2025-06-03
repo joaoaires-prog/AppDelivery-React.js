@@ -1,4 +1,3 @@
-
 import { Routes, Route, useLocation } from "react-router-dom";
 import Home from "../Pages/Home/Home";
 
@@ -32,7 +31,7 @@ const AppRoutesContent = () => (
   <MainLayout>
     <Routes>
       <Route path="/" element={<Home />} />
-      {/* MUDANÇA AQUI: A rota /login agora usa o seu AdminLogin renomeado para Login */}
+
       <Route path="/login" element={<Login />} />
       <Route path="/cadastro" element={<Register />} />
       <Route path="/remember" element={<RememberPage />} />

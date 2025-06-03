@@ -18,7 +18,6 @@ const Register = () => {
   const navigate = useNavigate();
   const { registerAdmin } = useAuth();
 
-  // Lista de restaurantes disponíveis (para o dropdown)
   const restaurantesDisponiveis = {
     mais1cafe: "Mais1Café",
     apetitis: "Apetitis",
@@ -30,25 +29,21 @@ const Register = () => {
     setLoading(true);
     setMessage("");
 
-    console.log("Register.jsx: handleSubmit chamado."); // LOG 1
+    console.log("Register.jsx: handleSubmit chamado.");
 
-    // Validação das senhas
     if (password !== confirmPassword) {
       setMessage("As senhas não coincidem!");
       setLoading(false);
-      console.log("Register.jsx: Senhas não coincidem. Retornando."); // LOG 2
-      return;
+      console.log("Register.jsx: Senhas não coincidem. Retornando.");
     }
 
-    // Validação da força da senha
     if (password.length < 6) {
       setMessage("A senha deve ter pelo menos 6 caracteres!");
       setLoading(false);
-      console.log("Register.jsx: Senha muito curta. Retornando."); // LOG 3
+      console.log("Register.jsx: Senha muito curta. Retornando.");
       return;
     }
 
-    // Validação específica para campos de administrador
     if (!nomeAdmin || !restaurantId) {
       setMessage("Nome do administrador e restaurante são obrigatórios!");
       setLoading(false);
@@ -58,7 +53,6 @@ const Register = () => {
       return;
     }
 
-    // Prepara o payload para enviar para o AuthContext
     const payload = {
       email,
       senha: password,
@@ -70,24 +64,17 @@ const Register = () => {
       payload
     ); // LOG 5
 
-    // Chama a função registerAdmin do AuthContext
-    // ATENÇÃO: Mantenha 'await' aqui.
-    // O problema da requisição não aparecer está na função registerAdmin em AuthContext
-    // ou em um erro anterior que impede o fluxo de chegar lá.
-    const result = await registerAdmin(payload); // LOG 6 (Esta linha chamará a função no AuthContext)
-
-    // Os console.logs de sucesso/erro após esta linha só aparecerão se a promessa de registerAdmin for resolvida
+    const result = await registerAdmin(payload);
     if (result.success) {
       console.log(
         "Register.jsx: Registro bem-sucedido. Mensagem:",
         result.message
-      ); // LOG 7
+      );
       setMessage(
         result.message ||
           "Administrador cadastrado com sucesso! Redirecionando para login..."
       );
-      // Limpar formulário
-      setEmail("");
+
       setPassword("");
       setConfirmPassword("");
       setRestaurantId("");
@@ -97,7 +84,7 @@ const Register = () => {
         navigate("/login");
       }, 2000);
     } else {
-      console.log("Register.jsx: Registro falhou. Erro:", result.error); // LOG 8
+      console.log("Register.jsx: Registro falhou. Erro:", result.error);
       setMessage(result.error || "Erro ao cadastrar administrador");
     }
     setLoading(false);
@@ -122,7 +109,6 @@ const Register = () => {
           </div>
         )}
 
-        {/* Campo Nome do Administrador */}
         <div className={styles["input-field"]}>
           <input
             type="text"
@@ -135,7 +121,6 @@ const Register = () => {
           <FaUser className={styles.icon} />
         </div>
 
-        {/* Campo E-mail */}
         <div className={styles["input-field"]}>
           <input
             type="email"
@@ -148,7 +133,6 @@ const Register = () => {
           <FaUser className={styles.icon} />
         </div>
 
-        {/* Campo Senha */}
         <div className={styles["input-field"]}>
           <input
             type="password"
@@ -161,7 +145,6 @@ const Register = () => {
           <FaLock className={styles.icon} />
         </div>
 
-        {/* Campo Confirme a Senha */}
         <div className={styles["input-field"]}>
           <input
             type="password"
@@ -174,7 +157,6 @@ const Register = () => {
           <FaLock className={styles.icon} />
         </div>
 
-        {/* Select de Restaurante */}
         <div className={styles["input-field"]}>
           <select
             value={restaurantId}

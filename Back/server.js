@@ -90,10 +90,10 @@ app.post('/api/login', async (req, res) => {
       .eq('email', email)
       .single();
 
-    
+
     console.log("Backend LOG: Objeto 'admin' retornado do Supabase:", admin);
     console.log("Backend LOG: Valor da 'role' do admin:", admin?.role);
-    
+
 
     if (error && error.code !== 'PGRST116') {
       console.error('Erro ao buscar administrador no Supabase:', error);

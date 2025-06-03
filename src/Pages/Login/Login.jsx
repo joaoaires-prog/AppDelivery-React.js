@@ -4,7 +4,7 @@ import { FaLock, FaUser } from "react-icons/fa";
 import { useState } from "react";
 import styles from "../../Styles/AuthForm.module.css";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "../../Context/AuthContext"; // <<<< MANTENDO ESTA IMPORTAÇÃO!
+import { useAuth } from "../../Context/AuthContext";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -16,13 +16,8 @@ const Login = () => {
 
   const navigate = useNavigate();
   const location = useLocation();
-  const { login: authContextLogin, user: authUser } = useAuth(); // <<<< Usando a função login do AuthContext
-
-  // 'from' padrão agora é a home, pois o AuthContext vai determinar o role
+  const { login: authContextLogin, user: authUser } = useAuth();
   const from = location.state?.from?.pathname || "/";
-
-  // REMOVIDO: A função checkIfAdminEmail e a lista de e-mails padrões.
-  // A decisão de admin é feita no backend e propagada via AuthContext.
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -36,7 +31,6 @@ const Login = () => {
     }
 
     try {
-      // **** MUDANÇA PRINCIPAL AQUI: Chamar a função login do AuthContext ****
       const result = await authContextLogin(email, password);
 
       if (result.success) {
@@ -44,28 +38,23 @@ const Login = () => {
         setEmail("");
         setPassword("");
 
-        // O AuthContext já atualiza o 'user' e o 'token' e os guarda no localStorage.
-        // Agora, usamos os dados do usuário retornados pelo AuthContext.login
-        // ou acedemos ao 'user' diretamente do contexto (authUser).
-        const userRole = result.user?.role; // Aceder ao role do usuário retornado pelo login do contexto
+        const userRole = result.user?.role;
 
-        if (userRole === 'admin') {
-          setIsAdminLogin(true); // Atualiza o estado da UI para admin
+        if (userRole === "admin") {
+          setIsAdminLogin(true);
           setTimeout(() => {
-            navigate("/admin/editar", { replace: true }); // Redireciona para a rota de edição de administrador
+            navigate("/admin/editar", { replace: true });
           }, 1500);
         } else {
-          setIsAdminLogin(false); // Atualiza o estado da UI para usuário normal
+          setIsAdminLogin(false);
           setTimeout(() => {
-            navigate(from, { replace: true }); // Redireciona para o destino original ou home
+            navigate(from, { replace: true });
           }, 1500);
         }
-
       } else {
         setMessage(result.error || "Erro ao fazer login");
       }
     } catch (error) {
-      // Este catch pegaria erros na chamada de authContextLogin (erros de rede, etc.)
       console.error("Erro no processo de login:", error);
       setMessage("Ocorreu um erro inesperado. Tente novamente.");
     } finally {
@@ -76,8 +65,6 @@ const Login = () => {
   const handleEmailChange = (e) => {
     const emailValue = e.target.value;
     setEmail(emailValue);
-    // O estado isAdminLogin agora é resetado ao digitar e só é definido após o login bem-sucedido via AuthContext.
-    setIsAdminLogin(false);
   };
 
   return (
@@ -127,7 +114,6 @@ const Login = () => {
           <FaLock className={styles.icon} />
         </div>
 
-        {/* Mantido como antes, não ligado diretamente à isAdminLogin no frontend */}
         <div className={styles["recall-forget"]}>
           <label>
             <input
@@ -145,7 +131,6 @@ const Login = () => {
           {loading ? "Entrando..." : "Entrar"}
         </button>
 
-        {/* Mantido como antes, não ligado diretamente à isAdminLogin no frontend */}
         <div className={styles["signup-link"]}>
           <a href="/cadastro">Registrar-se</a>
         </div>

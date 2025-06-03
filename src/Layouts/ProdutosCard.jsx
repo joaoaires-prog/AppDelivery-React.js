@@ -1,8 +1,6 @@
-// src/Components/ProdutoCard.jsx
+"use client";
 
-"use client"
-
-import { Edit, Trash2 } from "lucide-react"
+import { Edit, Trash2 } from "lucide-react";
 
 export default function ProdutoCard({ produto, onEdit, onDelete }) {
   return (
@@ -14,13 +12,21 @@ export default function ProdutoCard({ produto, onEdit, onDelete }) {
           className="w-20 h-20 rounded-lg object-cover"
         />
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-gray-900 truncate">{produto.nome}</h3>
-          <p className="text-sm text-gray-600 mt-1 line-clamp-2">{produto.descricao}</p>
+          <h3 className="font-semibold text-gray-900 truncate">
+            {produto.nome}
+          </h3>
+          <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+            {produto.descricao}
+          </p>
           <div className="flex items-center justify-between mt-3">
-            <span className="text-lg font-bold text-purple-600">R$ {produto.preco.toFixed(2)}</span>
+            <span className="text-lg font-bold text-purple-600">
+              R$ {produto.preco.toFixed(2)}
+            </span>
             <span
               className={`px-2 py-1 text-xs font-medium rounded-full ${
-                produto.disponivel ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                produto.disponivel
+                  ? "bg-green-100 text-green-800"
+                  : "bg-red-100 text-red-800"
               }`}
             >
               {produto.disponivel ? "Disponível" : "Indisponível"}
@@ -45,5 +51,5 @@ export default function ProdutoCard({ produto, onEdit, onDelete }) {
         </button>
       </div>
     </div>
-  )
+  );
 }
