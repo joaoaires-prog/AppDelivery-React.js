@@ -1,11 +1,11 @@
-// Backend/server.js
+
 
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken'; 
+import jwt from 'jsonwebtoken';
 dotenv.config();
 
 const app = express();
@@ -17,7 +17,7 @@ const supabaseKey = process.env.SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 
-const JWT_SECRET = process.env.JWT_SECRET; 
+const JWT_SECRET = process.env.JWT_SECRET;
 
 app.use(cors());
 app.use(express.json());
@@ -27,12 +27,12 @@ app.get('/', (req, res) => {
   res.send('API está funcionando!');
 });
 
-// Rota de Cadastro
-app.post('/api/register', async (req, res) => {
-  const { email, senha, restaurantId } = req.body;
 
-  if (!email || !senha || !restaurantId) {
-    return res.status(400).json({ success: false, message: 'Todos os campos são obrigatórios!' });
+app.post('/api/register', async (req, res) => {
+  const { email, senha, restaurantId, nome } = req.body;
+
+  if (!email || !senha || !restaurantId || !nome) {
+    return res.status(400).json({ success: false, message: 'Todos os campos (email, senha, nome, restaurante) são obrigatórios!' });
   }
 
   try {
@@ -52,10 +52,12 @@ app.post('/api/register', async (req, res) => {
     const { data, error } = await supabase
       .from('administradores')
       .insert([
-        { 
-          email: email, 
+        {
+          email: email,
           senha: hashedPassword,
-          restaurant_id: restaurantId 
+          restaurant_id: restaurantId,
+          nome: nome,
+          role: 'admin'
         }
       ]);
 
@@ -64,7 +66,7 @@ app.post('/api/register', async (req, res) => {
       return res.status(500).json({ success: false, message: 'Erro ao cadastrar administrador no banco de dados.' });
     }
 
-    console.log('Administrador cadastrado com sucesso:', data);
+    console.log('Administrador cadastrado com sucesso.');
     res.status(201).json({ success: true, message: 'Administrador cadastrado com sucesso!' });
 
   } catch (error) {
@@ -73,7 +75,7 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-//ROTA DE LOGIN
+
 app.post('/api/login', async (req, res) => {
   const { email, senha } = req.body;
 
@@ -84,12 +86,16 @@ app.post('/api/login', async (req, res) => {
   try {
     const { data: admin, error } = await supabase
       .from('administradores')
-      .select('id, email, senha, restaurant_id') 
+      .select('id, email, senha, restaurant_id, nome, role')
       .eq('email', email)
-      .single(); 
+      .single();
 
-    if (error && error.code !== 'PGRST116') { 
-      
+    
+    console.log("Backend LOG: Objeto 'admin' retornado do Supabase:", admin);
+    console.log("Backend LOG: Valor da 'role' do admin:", admin?.role);
+    
+
+    if (error && error.code !== 'PGRST116') {
       console.error('Erro ao buscar administrador no Supabase:', error);
       return res.status(500).json({ success: false, message: 'Erro ao buscar usuário no banco de dados.' });
     }
@@ -105,23 +111,27 @@ app.post('/api/login', async (req, res) => {
     }
 
     const token = jwt.sign(
-      { 
-        id: admin.id, 
-        email: admin.email, 
-        restaurantId: admin.restaurant_id 
-      }, 
-      JWT_SECRET, 
-      { expiresIn: '1h' } 
+      {
+        id: admin.id,
+        email: admin.email,
+        restaurantId: admin.restaurant_id,
+        nome: admin.nome,
+        role: admin.role
+      },
+      JWT_SECRET,
+      { expiresIn: '1h' }
     );
 
-    res.status(200).json({ 
-      success: true, 
-      message: 'Login realizado com sucesso!', 
+    res.status(200).json({
+      success: true,
+      message: 'Login realizado com sucesso!',
       token: token,
       data: {
         id: admin.id,
         email: admin.email,
-        restaurantId: admin.restaurant_id
+        restaurantId: admin.restaurant_id,
+        nome: admin.nome,
+        role: admin.role
       }
     });
 
@@ -130,8 +140,6 @@ app.post('/api/login', async (req, res) => {
     res.status(500).json({ success: false, message: 'Erro interno do servidor.' });
   }
 });
-// FIM DA ROTA DE LOGIN
-
 
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);

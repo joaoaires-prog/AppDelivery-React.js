@@ -1,37 +1,50 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
 import { Link, Outlet, useNavigate } from "react-router-dom"
 import { useAuth } from "../Context/AuthContext"
 import { Menu, X, Package, ArrowLeft, LogOut, User } from "lucide-react"
-import "../Styles/Admin.css" // Importar os estilos do admin
+import "../Styles/Admin.css"
 
 export default function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { user, logout } = useAuth()
+  const { user, logout, loading } = useAuth() // Obtenha 'loading' também
   const navigate = useNavigate()
 
-  // Verificar autenticação
   useEffect(() => {
-    if (!user) {
-      navigate("/login")
+    console.log("AdminLayout: useEffect chamado. User:", user, "Loading:", loading); // LOG
+    // Só redireciona se terminou de carregar e não há usuário (fallback, ProtectedRoute já deveria lidar)
+    if (!loading && !user) {
+      console.log("AdminLayout: Usuário não existe e não está carregando. Redirecionando para /login."); // LOG
+      navigate("/login");
     }
-  }, [user, navigate])
+  }, [user, loading, navigate]);
 
   const handleLogout = () => {
-    logout()
-    navigate("/login")
+    console.log("AdminLayout: Acionando logout."); // LOG
+    logout();
   }
 
-  if (!user) {
+  // Exibe um spinner de carregamento enquanto o AuthContext está verificando o usuário
+  if (loading) {
+    console.log("AdminLayout: Em estado de carregamento inicial."); // LOG
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 font-medium">Carregando...</p>
+          <p className="mt-4 text-gray-600 font-medium">Carregando painel...</p>
         </div>
       </div>
-    )
+    );
+  }
+
+  // Se user é null após loading ser false, significa que não está logado
+  // ProtectedRoute já deveria ter feito o redirecionamento.
+  // Esta condição é mais para um fallback ou para evitar erros de renderização se 'user' for null.
+  if (!user) {
+    console.log("AdminLayout: User é null após carregamento, não deveria acontecer aqui se ProtectedRoute funcionou."); // LOG
+    return null; // Não renderiza nada ou redireciona
   }
 
   return (
@@ -53,7 +66,7 @@ export default function AdminLayout() {
                 <User className="w-8 h-8 text-purple-600" />
                 <div>
                   <p className="font-medium text-gray-900">{user.nome}</p>
-                  <p className="text-sm text-purple-600">{user.nomeRestaurante}</p>
+                  <p className="text-sm text-purple-600">{user.restaurante || 'N/A'}</p>
                 </div>
               </div>
             </div>
@@ -86,7 +99,7 @@ export default function AdminLayout() {
                 <User className="w-8 h-8 text-purple-600" />
                 <div>
                   <p className="font-medium text-gray-900">{user.nome}</p>
-                  <p className="text-sm text-purple-600">{user.nomeRestaurante}</p>
+                  <p className="text-sm text-purple-600">{user.restaurante || 'N/A'}</p>
                   <p className="text-xs text-gray-500">{user.email}</p>
                 </div>
               </div>
@@ -130,7 +143,7 @@ export default function AdminLayout() {
           <button onClick={() => setSidebarOpen(true)}>
             <Menu className="w-6 h-6 text-gray-500" />
           </button>
-          <h1 className="text-lg font-semibold text-gray-900">{user.nomeRestaurante}</h1>
+          <h1 className="text-lg font-semibold text-gray-900">{user.restaurante || 'N/A'}</h1>
           <button onClick={handleLogout} className="text-red-600 hover:text-red-700">
             <LogOut className="w-6 h-6" />
           </button>
