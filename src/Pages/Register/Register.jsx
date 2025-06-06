@@ -1,27 +1,32 @@
+// src/Pages/Auth/Register.jsx
+
 "use client";
 
 import { FaLock, FaUser, FaStore } from "react-icons/fa";
 import { useState } from "react";
 import styles from "../../Styles/AuthForm.module.css";
 import { useNavigate, Link } from "react-router-dom";
-import { useAuth } from "../../Context/AuthContext";
+import { useAuth } from "../../Context/AuthContext"; //
 
 const Register = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [restaurantId, setRestaurantId] = useState("");
+  const [restaurantId, setRestaurantId] = useState(""); // Este estado agora guardará o ID NUMÉRICO
   const [nomeAdmin, setNomeAdmin] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
   const navigate = useNavigate();
-  const { registerAdmin } = useAuth();
+  const { registerAdmin } = useAuth(); //
 
+  // ATUALIZE ESTE OBJETO COM OS IDs NUMÉRICOS REAIS DA SUA TABELA 'restaurantes' NO SUPABASE
+  // Exemplo: "Nome Exibido no Select": ID_NUMERICO_DO_RESTAURANTE_NO_BD
   const restaurantesDisponiveis = {
-    mais1cafe: "Mais1Café",
-    apetitis: "Apetitis",
-    picapau: "Pica Pau Crepes",
+    "Mais1Café": 3, // Exemplo: se o ID de 'Mais1Café' na tabela 'restaurantes' for 1
+    "Apetitis": 2,  // Exemplo: se o ID de 'Apetitis' na tabela 'restaurantes' for 2
+    "Pica Pau Crepes": 1, // Exemplo: se o ID de 'Pica Pau Crepes' na tabela 'restaurantes' for 3
+    // Adapte esses IDs para os que você tem no seu banco!
   };
 
   const handleSubmit = async (event) => {
@@ -35,6 +40,7 @@ const Register = () => {
       setMessage("As senhas não coincidem!");
       setLoading(false);
       console.log("Register.jsx: Senhas não coincidem. Retornando.");
+      return;
     }
 
     if (password.length < 6) {
@@ -49,7 +55,7 @@ const Register = () => {
       setLoading(false);
       console.log(
         "Register.jsx: Campos de admin obrigatórios faltando. Retornando."
-      ); // LOG 4
+      );
       return;
     }
 
@@ -57,14 +63,14 @@ const Register = () => {
       email,
       senha: password,
       nome: nomeAdmin,
-      restaurante: restaurantId,
+      restaurante: restaurantId, // restaurantId agora já é o ID numérico
     };
     console.log(
       "Register.jsx: Todas as validações passadas. Payload para registerAdmin:",
       payload
-    ); // LOG 5
+    ); //
 
-    const result = await registerAdmin(payload);
+    const result = await registerAdmin(payload); //
     if (result.success) {
       console.log(
         "Register.jsx: Registro bem-sucedido. Mensagem:",
@@ -75,6 +81,7 @@ const Register = () => {
           "Administrador cadastrado com sucesso! Redirecionando para login..."
       );
 
+      // Limpar os campos do formulário
       setPassword("");
       setConfirmPassword("");
       setRestaurantId("");
@@ -162,13 +169,13 @@ const Register = () => {
             value={restaurantId}
             required
             disabled={loading}
-            onChange={(e) => setRestaurantId(e.target.value)}
+            onChange={(e) => setRestaurantId(parseInt(e.target.value))} // <--- Converte para inteiro aqui!
             className={styles.select}
           >
             <option value="">Selecione o Restaurante</option>
-            {Object.entries(restaurantesDisponiveis).map(([id, nome]) => (
-              <option key={id} value={id}>
-                {nome}
+            {Object.entries(restaurantesDisponiveis).map(([nomeExibir, idNumerico]) => (
+              <option key={idNumerico} value={idNumerico}> {/* value agora é o ID NUMÉRICO */}
+                {nomeExibir}
               </option>
             ))}
           </select>

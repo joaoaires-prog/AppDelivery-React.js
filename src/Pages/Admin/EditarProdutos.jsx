@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -6,105 +7,90 @@ import { useAuth } from "../../Context/AuthContext";
 import { Plus, Search, Edit, Trash2, X, Upload, Save } from "lucide-react";
 import ProdutoForm from "../../Components/Admin/ProdutoForm";
 
-// Dados simulados dos produtos por restaurante
-// <--- MUDANÇA FUTURA: Substitua estes dados simulados por chamadas à API do seu backend!
-const produtosPorRestaurante = {
-  mais1cafe: [
-    {
-      id: 1,
-      nome: "Café Expresso",
-      preco: 4.5,
-      disponivel: true,
-      imagem: "https://via.placeholder.com/80x80/F59E0B/FFFFFF?text=Café",
-      descricao: "Café expresso tradicional",
-    },
-    {
-      id: 2,
-      nome: "Cappuccino",
-      preco: 6.0,
-      disponivel: true,
-      imagem: "https://via.placeholder.com/80x80/F59E0B/FFFFFF?text=Cap",
-      descricao: "Cappuccino cremoso",
-    },
-    {
-      id: 3,
-      nome: "Croissant",
-      preco: 8.0,
-      disponivel: false,
-      imagem: "https://via.placeholder.com/80x80/F59E0B/FFFFFF?text=Croi",
-      descricao: "Croissant francês",
-    },
-  ],
-  apetitis: [
-    {
-      id: 4,
-      nome: "Hambúrguer Artesanal",
-      preco: 25.0,
-      disponivel: true,
-      imagem: "https://via.placeholder.com/80x80/10B981/FFFFFF?text=Ham",
-      descricao: "Hambúrguer com carne artesanal",
-    },
-    {
-      id: 5,
-      nome: "Batata Frita",
-      preco: 12.0,
-      disponivel: true,
-      imagem: "https://via.placeholder.com/80x80/10B981/FFFFFF?text=Bat",
-      descricao: "Batata frita crocante",
-    },
-  ],
-  picapau: [
-    {
-      id: 6,
-      nome: "Crepe Doce",
-      preco: 15.0,
-      disponivel: true,
-      imagem: "https://via.placeholder.com/80x80/F97316/FFFFFF?text=Doce",
-      descricao: "Crepe com nutella e morango",
-    },
-    {
-      id: 7,
-      nome: "Crepe Salgado",
-      preco: 18.0,
-      disponivel: true,
-      imagem: "https://via.placeholder.com/80x80/F97316/FFFFFF?text=Salg",
-      descricao: "Crepe com frango e queijo",
-    },
-  ],
-};
+// const produtosPorRestaurante = {...};
+
+const API_BASE_URL = "http://localhost:3001";
 
 export default function EditarProdutos() {
   const [searchParams] = useSearchParams();
-  const { user } = useAuth();
+  const { user, token, loading: authLoading } = useAuth();
 
-  // O restaurante sempre será o do usuário logado
-  const restaurante = user?.restaurante || "mais1cafe";
-
-  const [produtos, setProdutos] = useState(
-    produtosPorRestaurante[restaurante] || []
-  );
+  const [produtos, setProdutos] = useState([]);
   const [busca, setBusca] = useState("");
   const [modalAberto, setModalAberto] = useState(false);
   const [produtoEditando, setProdutoEditando] = useState(null);
+  const [cardapioDoRestauranteId, setCardapioDoRestauranteId] = useState(null); // Estado para o cardapio_id
+
   const [formData, setFormData] = useState({
     nome: "",
     descricao: "",
     preco: "",
     disponivel: true,
-    imagem: "https://via.placeholder.com/80x80/8B5CF6/FFFFFF?text=IMG",
+    imagem: "https://via.placeholder.com/80x80/8B5CF6/FFFFFF?text=IMG", // Placeholder padrão
   });
 
-  // Atualizar produtos quando o usuário mudar
-  useEffect(() => {
-    if (user?.restaurante) {
-      // <--- MUDANÇA FUTURA: Aqui você fará uma requisição ao backend para buscar os produtos
-      setProdutos(produtosPorRestaurante[user.restaurante] || []);
-    }
-  }, [user]);
+  const [pageLoading, setPageLoading] = useState(true); // Para gerenciar o carregamento da página
 
-  const produtosFiltrados = produtos.filter((produto) =>
-    produto.nome.toLowerCase().includes(busca.toLowerCase())
-  );
+  // Efeito para buscar produtos e o ID do cardápio quando o usuário ou token mudar
+  useEffect(() => {
+    const fetchProdutosAndCardapio = async () => {
+      // Se a autenticação ainda está carregando ou não há usuário/restaurante/token, apenas aguarde
+      if (authLoading || !user || !user.restaurante || !token) {
+        setPageLoading(false); // Garante que o loading seja falso se não houver user/token
+        return;
+      }
+
+      setPageLoading(true); // Inicia o loading da página
+      try {
+        // 1. Primeiro, buscar o ID do cardápio principal do restaurante logado
+        const responseCardapio = await fetch(
+          `${API_BASE_URL}/api/cardapios/restaurante/${user.restaurante}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        const dataCardapio = await responseCardapio.json();
+
+        if (responseCardapio.ok && dataCardapio.success && dataCardapio.cardapios.length > 0) {
+          // Assumimos que o primeiro cardápio encontrado é o principal para associar produtos
+          const principalCardapioId = dataCardapio.cardapios[0].id;
+          setCardapioDoRestauranteId(principalCardapioId);
+
+          // 2. Em seguida, buscar os produtos associados a esse restaurante
+          const responseProdutos = await fetch(
+            `${API_BASE_URL}/api/produtos/${user.restaurante}${busca ? `?busca=${busca}` : ""}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
+          const dataProdutos = await responseProdutos.json();
+
+          if (responseProdutos.ok && dataProdutos.success) {
+            setProdutos(dataProdutos.produtos);
+          } else {
+            console.error("Erro ao carregar produtos:", dataProdutos.message || "Erro desconhecido");
+            setProdutos([]); // Limpa produtos em caso de erro
+          }
+        } else {
+          console.warn("Nenhum cardápio encontrado para este restaurante ou erro ao buscar cardápio:", dataCardapio.message);
+          setProdutos([]); // Limpa produtos se não houver cardápio
+          setCardapioDoRestauranteId(null); // Define como nulo para desabilitar adição de produtos
+        }
+      } catch (error) {
+        console.error("Erro geral ao buscar dados do cardápio/produtos:", error);
+        setProdutos([]);
+        setCardapioDoRestauranteId(null);
+      } finally {
+        setPageLoading(false); // Finaliza o loading da página
+      }
+    };
+
+    fetchProdutosAndCardapio();
+  }, [user, token, busca, authLoading]); // Dependências do useEffect
 
   const abrirModal = (produto = null) => {
     if (produto) {
@@ -132,37 +118,92 @@ export default function EditarProdutos() {
   const fecharModal = () => {
     setModalAberto(false);
     setProdutoEditando(null);
+    // Para forçar a recarga dos produtos após fechar o modal
+    setProdutos([]);
   };
 
-  const salvarProduto = () => {
-    // <--- MUDANÇA FUTURA: Aqui você fará requisições POST/PUT ao backend para salvar/editar produtos
-    if (produtoEditando) {
-      // Editar produto existente
-      setProdutos(
-        produtos.map((p) =>
-          p.id === produtoEditando.id
-            ? { ...p, ...formData, preco: Number.parseFloat(formData.preco) }
-            : p
-        )
-      );
-    } else {
-      // Adicionar novo produto
-      const novoProduto = {
-        id: Date.now(),
-        ...formData,
-        preco: Number.parseFloat(formData.preco),
-      };
-      setProdutos([...produtos, novoProduto]);
+  const salvarProduto = async () => {
+    if (!cardapioDoRestauranteId) {
+      alert("Não foi possível encontrar um cardápio para associar o produto. Certifique-se de que seu restaurante tem um cardápio cadastrado.");
+      return;
     }
-    fecharModal();
+
+    const produtoParaSalvar = {
+      ...formData,
+      preco: Number.parseFloat(formData.preco),
+      cardapio_id: cardapioDoRestauranteId, // Adiciona o cardapio_id necessário para o backend
+    };
+
+    try {
+      let response;
+      if (produtoEditando) {
+        // Edição de produto existente
+        response = await fetch(`${API_BASE_URL}/api/produtos/${produtoEditando.id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`, // Envia o token JWT
+          },
+          body: JSON.stringify(produtoParaSalvar),
+        });
+      } else {
+        // Adição de novo produto
+        response = await fetch(`${API_BASE_URL}/api/produtos`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`, // Envia o token JWT
+          },
+          body: JSON.stringify(produtoParaSalvar),
+        });
+      }
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        alert(data.message);
+        fecharModal();
+        setProdutos([]); // Força o useEffect a recarregar a lista de produtos
+      } else {
+        alert(data.message || "Erro ao salvar produto.");
+        console.error("Erro na resposta da API ao salvar produto:", data);
+      }
+    } catch (error) {
+      alert("Erro de conexão ao salvar produto.");
+      console.error("Erro de rede ao salvar produto:", error);
+    }
   };
 
-  const excluirProduto = (id) => {
-    // <--- MUDANÇA FUTURA: Aqui você fará requisições DELETE ao backend para excluir produtos
-    setProdutos(produtos.filter((p) => p.id !== id));
+  const excluirProduto = async (id) => {
+    if (!window.confirm("Tem certeza que deseja excluir este produto?")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/produtos/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`, // Envia o token JWT
+        },
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        alert(data.message);
+        setProdutos(produtos.filter((p) => p.id !== id)); // Remove do estado local para atualização imediata
+      } else {
+        alert(data.message || "Erro ao excluir produto.");
+        console.error("Erro na resposta da API ao excluir produto:", data);
+      }
+    } catch (error) {
+      alert("Erro de conexão ao excluir produto.");
+      console.error("Erro de rede ao excluir produto:", error);
+    }
   };
 
-  if (!user) {
+  // Condição de carregamento unificada
+  if (authLoading || pageLoading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <div className="text-center">
@@ -173,16 +214,23 @@ export default function EditarProdutos() {
     );
   }
 
+  // Se não houver usuário logado após o carregamento
+  if (!user) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-500 text-lg">Por favor, faça login para gerenciar produtos.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 fade-in">
       {/* Header */}
       <div className="admin-header">
         <div>
           <h1 className="admin-title">Gerenciar Cardápio</h1>
-          {/* user.nomeRestaurante precisa ser populado no AuthContext/Backend ou traduzido aqui */}
           <p className="admin-subtitle">
             {user.restaurante || "N/A"} • {produtos.length} produtos{" "}
-            {/* <--- MUDANÇA AQUI: user.restaurante */}
           </p>
           <p className="text-sm text-purple-600 mt-1">
             Logado como: {user.nome}
@@ -191,6 +239,8 @@ export default function EditarProdutos() {
         <button
           onClick={() => abrirModal()}
           className="btn-primary flex items-center gap-2"
+          disabled={!cardapioDoRestauranteId} // Desabilita o botão se não houver um cardapio_id
+          title={!cardapioDoRestauranteId ? "Um cardápio deve ser criado para este restaurante antes de adicionar produtos." : ""}
         >
           <Plus className="w-5 h-5" />
           Adicionar Produto
@@ -211,7 +261,7 @@ export default function EditarProdutos() {
 
       {/* Lista de Produtos */}
       <div className="admin-grid">
-        {produtosFiltrados.map((produto) => (
+        {produtos.map((produto) => ( // Use 'produtos' diretamente, pois agora vêm do backend
           <div key={produto.id} className="card group">
             <div className="flex items-start gap-4">
               <img
@@ -228,7 +278,7 @@ export default function EditarProdutos() {
                 </p>
                 <div className="flex items-center justify-between mt-3">
                   <span className="text-lg font-bold text-purple-600">
-                    R$ {produto.preco.toFixed(2)}
+                    R$ {produto.preco ? produto.preco.toFixed(2) : '0.00'} {/* Adicionado .toFixed(2) e fallback */}
                   </span>
                   <span
                     className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -262,13 +312,16 @@ export default function EditarProdutos() {
         ))}
       </div>
 
-      {produtosFiltrados.length === 0 && (
+      {produtos.length === 0 && !pageLoading && (
         <div className="text-center py-12">
-          <p className="text-gray-500 text-lg">Nenhum produto encontrado</p>
+          <p className="text-gray-500 text-lg">Nenhum produto encontrado.</p>
+          {!cardapioDoRestauranteId && (
+            <p className="text-red-500 text-sm mt-2">Certifique-se de que seu restaurante possui um cardápio cadastrado no Supabase para poder adicionar produtos.</p>
+          )}
         </div>
       )}
 
-      {/* Modal é agora o componente ProdutoForm */}
+      {/* Modal é o componente ProdutoForm */}
       <ProdutoForm
         isOpen={modalAberto}
         onClose={fecharModal}
