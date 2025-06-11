@@ -6,23 +6,27 @@ import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { authenticateToken, authorizeRestaurantAdmin } from './middleware/auth.js'; // Importe os middlewares
+import { authenticateToken, authorizeRestaurantAdmin } from './middleware/auth.js';
+import multer from 'multer';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
+const JWT_SECRET = process.env.JWT_SECRET;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+
 const supabase = createClient(supabaseUrl, supabaseKey);
+const supabaseServiceRole = createClient(supabaseUrl, SUPABASE_SERVICE_KEY);
 
-
-const JWT_SECRET = process.env.JWT_SECRET; //
 
 app.use(cors());
 app.use(express.json());
+
+const upload = multer({ storage: multer.memoryStorage() });
 
 
 app.get('/', (req, res) => {
@@ -93,8 +97,8 @@ app.post('/api/login', async (req, res) => {
       .single();
 
 
-    console.log("Backend LOG: Objeto 'admin' retornado do Supabase:", admin); //
-    console.log("Backend LOG: Valor da 'role' do admin:", admin?.role); //
+    console.log("Backend LOG: Objeto 'admin' retornado do Supabase:", admin);
+    console.log("Backend LOG: Valor da 'role' do admin:", admin?.role);
 
 
     if (error && error.code !== 'PGRST116') {
@@ -144,35 +148,29 @@ app.post('/api/login', async (req, res) => {
 });
 
 
-// --- NOVAS ROTAS PARA GERENCIAMENTO DE CARDÁPIOS E PRODUTOS ---
+//ROTAS PARA GERENCIAMENTO DE CARDÁPIOS E PRODUTOS ---
 
 // Nova rota para buscar cardápios de um restaurante específico
-// Esta rota é necessária para o frontend saber qual cardapio_id usar ao adicionar produtos.
 app.get('/api/cardapios/restaurante/:restauranteId', authenticateToken, async (req, res) => {
   const { restauranteId } = req.params;
-  const { busca } = req.query; // Adicione esta linha para evitar o ReferenceError
+  const { busca } = req.query; 
 
-  console.log("LOG ROTA CARDAPIOS: Comparando IDs para cardápio:", { userRestaurantId: req.user?.restaurantId, paramRestauranteId: restauranteId }); //
+  console.log("LOG ROTA CARDAPIOS: Comparando IDs para cardápio:", { userRestaurantId: req.user?.restaurantId, paramRestauranteId: restauranteId });
 
   // Verifica se o usuário logado tem permissão
-  if (req.user.restaurantId !== Number(restauranteId)) { // Converta restauranteId para número!
-    console.log("LOG ROTA CARDAPIOS: Mismatch de IDs. req.user.restaurantId:", req.user?.restaurantId, " vs restauranteId da URL (convertido):", Number(restauranteId)); //
+  if (req.user.restaurantId !== Number(restauranteId)) {
+    console.log("LOG ROTA CARDAPIOS: Mismatch de IDs. req.user.restaurantId:", req.user?.restaurantId, " vs restauranteId da URL (convertido):", Number(restauranteId));
     return res.status(403).json({ success: false, message: 'Acesso negado. Você não tem permissão para visualizar cardápios deste restaurante.' });
   }
 
   try {
-    // AQUI: A rota de busca de cardápios deve apenas retornar os cardápios,
-    // não a lógica de produtos. O `EditarProdutos.jsx` espera `data.cardapios[0].id`
-    // para pegar o cardapio_id.
-
     const { data: cardapios, error } = await supabase
       .from('cardapios')
-      .select('id, descricao, data') // Selecione os campos que você precisa do cardápio
+      .select('id, descricao, data')
       .eq('restaurante_id', Number(restauranteId)); // Use Number() aqui para garantir compatibilidade de tipo na query
 
     if (error) throw error;
 
-    // Retorna os cardápios encontrados
     res.status(200).json({ success: true, cardapios: cardapios });
 
   } catch (error) {
@@ -182,28 +180,25 @@ app.get('/api/cardapios/restaurante/:restauranteId', authenticateToken, async (r
 });
 
 
-// Middleware de autenticação e autorização aplicado a todas as rotas de produtos
-app.use('/api/produtos', authenticateToken, authorizeRestaurantAdmin); //
+// <<<< NOVO: Rotas de produtos agora com upload de imagem e exclusão de imagem
 
-// GET /api/produtos/:restauranteId - Listar produtos de um restaurante
-app.get('/api/produtos/:restauranteId', async (req, res) => {
+// A rota GET não recebe arquivos, então a autenticação é direta
+app.get('/api/produtos/:restauranteId', authenticateToken, authorizeRestaurantAdmin, async (req, res) => {
   const { restauranteId } = req.params;
   const { busca } = req.query; // Para o filtro de busca
 
-  console.log("LOG ROTA PRODUTOS: Comparando IDs para produto:", { userRestaurantId: req.user?.restaurantId, paramRestauranteId: restauranteId }); //
+  console.log("LOG ROTA PRODUTOS: Comparando IDs para produto:", { userRestaurantId: req.user?.restaurantId, paramRestauranteId: restauranteId });
 
-  // Verifique se o usuário logado tem permissão para ver os produtos deste restaurante (redundante com authorizeRestaurantAdmin, mas bom para especificidade)
-  if (req.user.restaurantId !== Number(restauranteId)) { // Converta restauranteId para número!
-    console.log("LOG ROTA PRODUTOS: Mismatch de IDs. req.user.restaurantId:", req.user?.restaurantId, " vs restauranteId da URL (convertido):", Number(restauranteId)); //
+  if (req.user.restaurantId !== Number(restauranteId)) {
+    console.log("LOG ROTA PRODUTOS: Mismatch de IDs. req.user.restaurantId:", req.user?.restaurantId, " vs restauranteId da URL (convertido):", Number(restauranteId));
     return res.status(403).json({ success: false, message: 'Acesso negado. Você não tem permissão para visualizar produtos deste restaurante.' });
   }
 
   try {
-    // 1. Pega o(s) ID(s) do cardápio(s) do `restauranteId` da tabela `cardapios`.
     const { data: cardapiosDoRestaurante, error: cardapiosError } = await supabase
       .from('cardapios')
       .select('id')
-      .eq('restaurante_id', Number(restauranteId)); // Converta para Number() aqui também
+      .eq('restaurante_id', Number(restauranteId));
 
     if (cardapiosError) throw cardapiosError;
 
@@ -213,14 +208,13 @@ app.get('/api/produtos/:restauranteId', async (req, res) => {
       return res.status(200).json({ success: true, produtos: [], message: 'Nenhum cardápio encontrado para este restaurante, portanto nenhum produto para listar.' });
     }
 
-    // 2. Usa esses IDs para filtrar em `itens_cardapio`.
     let query = supabase
       .from('itens_cardapio')
       .select('*')
       .in('cardapio_id', cardapioIds);
 
     if (busca) {
-      query = query.ilike('nome', `%${busca}%`); // Busca case-insensitive
+      query = query.ilike('nome', `%${busca}%`);
     }
 
     const { data: produtos, error } = await query;
@@ -234,42 +228,68 @@ app.get('/api/produtos/:restauranteId', async (req, res) => {
   }
 });
 
-// POST /api/produtos - Adicionar um novo produto
-app.post('/api/produtos', async (req, res) => {
-  const { cardapio_id, nome, preco, descricao, disponivel, imagem } = req.body;
+// POST /api/produtos - Adicionar um novo produto com upload de imagem
+app.post('/api/produtos', authenticateToken, authorizeRestaurantAdmin, upload.single('imagem'), async (req, res) => {
+  const { cardapio_id, nome, preco, descricao, disponivel } = req.body;
+  const imageFile = req.file;
 
-  // Validações básicas dos campos obrigatórios
+  let imageUrl = null;
+
   if (!cardapio_id || !nome || preco === undefined || preco === null) {
     return res.status(400).json({ success: false, message: 'cardapio_id, nome e preco são obrigatórios.' });
   }
 
-  // Verifique se o cardapio_id pertence ao restaurante do usuário logado
-  const { data: cardapioCheck, error: cardapioCheckError } = await supabase
-    .from('cardapios')
-    .select('restaurante_id')
-    .eq('id', cardapio_id)
-    .single();
-
-  // Converta req.user.restaurantId para número para comparação
-  if (cardapioCheckError || !cardapioCheck || cardapioCheck.restaurante_id !== Number(req.user.restaurantId)) {
-    console.error('Tentativa de adicionar produto a cardápio não autorizado ou inexistente:', { cardapio_id, userRestaurantId: req.user.restaurantId });
-    return res.status(403).json({ success: false, message: 'Acesso negado. O cardápio especificado não pertence ao seu restaurante ou não existe.' });
-  }
-
   try {
+    const { data: cardapioCheck, error: cardapioCheckError } = await supabase
+      .from('cardapios')
+      .select('restaurante_id')
+      .eq('id', Number(cardapio_id))
+      .single();
+
+    if (cardapioCheckError || !cardapioCheck || cardapioCheck.restaurante_id !== Number(req.user.restaurantId)) {
+      console.error('Tentativa de adicionar produto a cardápio não autorizado ou inexistente:', { cardapio_id, userRestaurantId: req.user.restaurantId });
+      return res.status(403).json({ success: false, message: 'Acesso negado. O cardápio especificado não pertence ao seu restaurante ou não existe.' });
+    }
+
+    if (imageFile) {
+        const fileExtension = imageFile.originalname.split('.').pop();
+        const fileName = `${Date.now()}-${req.user.restaurantId}-${Math.random().toString(36).substring(2, 15)}.${fileExtension}`;
+        const filePath = `product-images/${fileName}`;
+
+        const { data: uploadData, error: uploadError } = await supabaseServiceRole.storage
+            .from('cardapio-imagens')
+            .upload(filePath, imageFile.buffer, {
+                contentType: imageFile.mimetype,
+                upsert: false
+            });
+
+        if (uploadError) {
+            console.error('Erro ao fazer upload da imagem para o Supabase Storage:', uploadError);
+            return res.status(500).json({ success: false, message: 'Erro ao fazer upload da imagem.' });
+        }
+
+        const { data: publicUrlData } = supabaseServiceRole.storage
+            .from('cardapio-imagens')
+            .getPublicUrl(filePath);
+            
+
+        imageUrl = publicUrlData.publicUrl;
+        console.log("Imagem uploaded com sucesso:", imageUrl);
+    }
+
     const { data, error } = await supabase
       .from('itens_cardapio')
       .insert([
         {
-          cardapio_id,
+          cardapio_id: Number(cardapio_id),
           nome,
-          preco: Number.parseFloat(preco), // Garante que o preço seja um número
-          descricao: descricao || null, // Permite nulo se não fornecido
-          disponivel: typeof disponivel === 'boolean' ? disponivel : true, // Valor padrão se não fornecido
-          imagem: imagem || null, // Permite nulo se não fornecido
+          preco: Number.parseFloat(preco),
+          descricao: descricao || null,
+          disponivel: typeof disponivel === 'boolean' ? disponivel : true,
+          imagem: imageUrl || null,
         }
       ])
-      .select(); // Retorna o item inserido
+      .select();
 
     if (error) throw error;
 
@@ -281,40 +301,77 @@ app.post('/api/produtos', async (req, res) => {
 });
 
 // PUT /api/produtos/:id - Editar um produto existente
-app.put('/api/produtos/:id', async (req, res) => {
+app.put('/api/produtos/:id', authenticateToken, authorizeRestaurantAdmin, upload.single('imagem'), async (req, res) => {
   const { id } = req.params;
-  const { nome, preco, descricao, disponivel, imagem } = req.body;
+  const { nome, preco, descricao, disponivel, imagemUrlExistente } = req.body;
+  const imageFile = req.file;
 
-  // Validações básicas
+  let imageUrl = imagemUrlExistente;
+
   if (!nome || preco === undefined || preco === null) {
     return res.status(400).json({ success: false, message: 'Nome e preco são obrigatórios para atualização.' });
   }
 
-  // Primeiro, verifique se o produto existe e se pertence ao restaurante do usuário logado
-  const { data: produtoExistente, error: produtoError } = await supabase
-    .from('itens_cardapio')
-    .select('cardapio_id')
-    .eq('id', id)
-    .single();
-
-  if (produtoError || !produtoExistente) {
-    return res.status(404).json({ success: false, message: 'Produto não encontrado.' });
-  }
-
-  // Verificar se o cardápio do produto pertence ao restaurante do usuário logado
-  const { data: cardapioCheck, error: cardapioCheckError } = await supabase
-    .from('cardapios')
-    .select('restaurante_id')
-    .eq('id', produtoExistente.cardapio_id)
-    .single();
-
-  // Converta req.user.restaurantId para número para comparação
-  if (cardapioCheckError || !cardapioCheck || cardapioCheck.restaurante_id !== Number(req.user.restaurantId)) {
-    console.error('Tentativa de editar produto não autorizado:', { produtoId: id, userRestaurantId: req.user.restaurantId });
-    return res.status(403).json({ success: false, message: 'Acesso negado. Você não tem permissão para editar este produto.' });
-  }
-
   try {
+    const { data: produtoExistente, error: produtoError } = await supabase
+      .from('itens_cardapio')
+      .select('cardapio_id, imagem')
+      .eq('id', id)
+      .single();
+
+    if (produtoError || !produtoExistente) {
+      return res.status(404).json({ success: false, message: 'Produto não encontrado.' });
+    }
+
+    const { data: cardapioCheck, error: cardapioCheckError } = await supabase
+      .from('cardapios')
+      .select('restaurante_id')
+      .eq('id', produtoExistente.cardapio_id)
+      .single();
+
+    if (cardapioCheckError || !cardapioCheck || cardapioCheck.restaurante_id !== Number(req.user.restaurantId)) {
+      console.error('Tentativa de editar produto não autorizado:', { produtoId: id, userRestaurantId: req.user.restaurantId });
+      return res.status(403).json({ success: false, message: 'Acesso negado. Você não tem permissão para editar este produto.' });
+    }
+
+    if (imageFile) {
+        const fileExtension = imageFile.originalname.split('.').pop();
+        const fileName = `${Date.now()}-${req.user.restaurantId}-${Math.random().toString(36).substring(2, 15)}.${fileExtension}`;
+        const filePath = `product-images/${fileName}`;
+
+        const { data: uploadData, error: uploadError } = await supabaseServiceRole.storage
+            .from('cardapio-imagens')
+            .upload(filePath, imageFile.buffer, {
+                contentType: imageFile.mimetype,
+                upsert: true
+            });
+
+        if (uploadError) {
+            console.error('Erro ao fazer upload da nova imagem para o Supabase Storage:', uploadError);
+            return res.status(500).json({ success: false, message: 'Erro ao fazer upload da nova imagem.' });
+        }
+
+        const { data: publicUrlData } = supabaseServiceRole.storage
+            .from('cardapio-imagens')
+            .getPublicUrl(filePath);
+
+        imageUrl = publicUrlData.publicUrl;
+        console.log("URL da imagem gerada pelo Supabase:", imageUrl);
+        console.log("Nova imagem uploaded com sucesso:", imageUrl);
+
+        if (produtoExistente.imagem && produtoExistente.imagem.includes(supabaseUrl) && !produtoExistente.imagem.includes("via.placeholder.com")) {
+            try {
+                const oldFilePath = produtoExistente.imagem.split('/public/')[1];
+                if (oldFilePath) {
+                    await supabaseServiceRole.storage.from('cardapio-imagens').remove([oldFilePath]);
+                    console.log("Imagem antiga removida:", oldFilePath);
+                }
+            } catch (removeError) {
+                console.warn("Não foi possível remover a imagem antiga do storage:", removeError);
+            }
+        }
+    }
+
     const { data, error } = await supabase
       .from('itens_cardapio')
       .update({
@@ -322,10 +379,10 @@ app.put('/api/produtos/:id', async (req, res) => {
         preco: Number.parseFloat(preco),
         descricao,
         disponivel,
-        imagem,
+        imagem: imageUrl,
       })
       .eq('id', id)
-      .select(); // Retorna o item atualizado
+      .select();
 
     if (error) throw error;
     if (!data || data.length === 0) {
@@ -361,8 +418,7 @@ app.delete('/api/produtos/:id', async (req, res) => {
     .eq('id', produtoExistente.cardapio_id)
     .single();
 
-  // Converta req.user.restaurantId para número para comparação
-  if (cardapioCheckError || !cardapioCheck || cardapioCheck.restaurante_id !== Number(req.user.restaurantId)) {
+  if (cardapioCheckError || !cardapioCheck || cardapioCheck.restaurante_id !== req.user.restaurantId) {
     console.error('Tentativa de excluir produto não autorizado:', { produtoId: id, userRestaurantId: req.user.restaurantId });
     return res.status(403).json({ success: false, message: 'Acesso negado. Você não tem permissão para excluir este produto.' });
   }
@@ -378,11 +434,60 @@ app.delete('/api/produtos/:id', async (req, res) => {
     res.status(200).json({ success: true, message: 'Produto excluído com sucesso!' });
   } catch (error) {
     console.error('Erro ao excluir produto:', error);
-    res.status(500).json({ success: false, message: 'Erro ao excluir produto.' });
+    res.status(500).json({ success: false, message: 'Erro interno do servidor.' });
   }
 });
 
 
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
+});
+
+// Rota pública para obter itens de cardápio de um restaurante
+app.get('/api/public/cardapio/:restauranteId', async (req, res) => {
+  const { restauranteId } = req.params;
+  const { busca } = req.query; // Para futura funcionalidade de busca pública, se desejar
+
+  try {
+    // 1. Encontrar o(s) ID(s) do cardápio(s) associado(s) a este restaurante
+    const { data: cardapiosDoRestaurante, error: cardapiosError } = await supabase
+      .from('cardapios')
+      .select('id')
+      .eq('restaurante_id', Number(restauranteId)); // Garanta que o ID é tratado como número
+
+    if (cardapiosError) {
+      console.error('Erro ao buscar cardápios do restaurante (público):', cardapiosError);
+      return res.status(500).json({ success: false, message: 'Erro ao buscar cardápios do restaurante.' });
+    }
+
+    if (cardapiosDoRestaurante.length === 0) {
+      return res.status(200).json({ success: true, produtos: [], message: 'Nenhum cardápio encontrado para este restaurante.' });
+    }
+
+    const cardapioIds = cardapiosDoRestaurante.map(c => c.id);
+
+    // 2. Buscar itens de cardápio (produtos) associados a esses cardápios
+    let query = supabase
+      .from('itens_cardapio')
+      .select('*')
+      .in('cardapio_id', cardapioIds)
+      .eq('disponivel', true); // <<<<< NOVO: Mostrar apenas produtos disponíveis ao público
+
+    if (busca) {
+      query = query.ilike('nome', `%${busca}%`);
+    }
+
+    const { data: produtos, error: produtosError } = await query;
+
+    if (produtosError) {
+      console.error('Erro ao buscar produtos do cardápio (público):', produtosError);
+      return res.status(500).json({ success: false, message: 'Erro ao buscar produtos.' });
+    }
+
+    res.status(200).json({ success: true, produtos: produtos });
+
+  } catch (error) {
+    console.error('Erro na rota pública de cardápio:', error);
+    res.status(500).json({ success: false, message: 'Erro interno do servidor.' });
+  }
 });

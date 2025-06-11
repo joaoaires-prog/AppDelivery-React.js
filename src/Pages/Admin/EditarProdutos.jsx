@@ -1,3 +1,4 @@
+// src/Pages/Admin/EditarProdutos.jsx
 
 "use client";
 
@@ -6,8 +7,6 @@ import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../../Context/AuthContext";
 import { Plus, Search, Edit, Trash2, X, Upload, Save } from "lucide-react";
 import ProdutoForm from "../../Components/Admin/ProdutoForm";
-
-// const produtosPorRestaurante = {...};
 
 const API_BASE_URL = "http://localhost:3001";
 
@@ -19,30 +18,28 @@ export default function EditarProdutos() {
   const [busca, setBusca] = useState("");
   const [modalAberto, setModalAberto] = useState(false);
   const [produtoEditando, setProdutoEditando] = useState(null);
-  const [cardapioDoRestauranteId, setCardapioDoRestauranteId] = useState(null); // Estado para o cardapio_id
+  const [cardapioDoRestauranteId, setCardapioDoRestauranteId] = useState(null);
 
   const [formData, setFormData] = useState({
     nome: "",
     descricao: "",
     preco: "",
     disponivel: true,
-    imagem: "https://via.placeholder.com/80x80/8B5CF6/FFFFFF?text=IMG", // Placeholder padrão
+    imagem: "https://via.placeholder.com/80x80/8B5CF6/FFFFFF?text=IMG",
   });
 
-  const [pageLoading, setPageLoading] = useState(true); // Para gerenciar o carregamento da página
+  const [pageLoading, setPageLoading] = useState(true);
+  const [refreshTrigger, setRefreshTrigger] = useState(0); // <<< NOVO ESTADO: Gatilho de atualização
 
-  // Efeito para buscar produtos e o ID do cardápio quando o usuário ou token mudar
   useEffect(() => {
     const fetchProdutosAndCardapio = async () => {
-      // Se a autenticação ainda está carregando ou não há usuário/restaurante/token, apenas aguarde
       if (authLoading || !user || !user.restaurante || !token) {
-        setPageLoading(false); // Garante que o loading seja falso se não houver user/token
+        setPageLoading(false);
         return;
       }
 
-      setPageLoading(true); // Inicia o loading da página
+      setPageLoading(true);
       try {
-        // 1. Primeiro, buscar o ID do cardápio principal do restaurante logado
         const responseCardapio = await fetch(
           `${API_BASE_URL}/api/cardapios/restaurante/${user.restaurante}`,
           {
@@ -54,11 +51,9 @@ export default function EditarProdutos() {
         const dataCardapio = await responseCardapio.json();
 
         if (responseCardapio.ok && dataCardapio.success && dataCardapio.cardapios.length > 0) {
-          // Assumimos que o primeiro cardápio encontrado é o principal para associar produtos
           const principalCardapioId = dataCardapio.cardapios[0].id;
           setCardapioDoRestauranteId(principalCardapioId);
 
-          // 2. Em seguida, buscar os produtos associados a esse restaurante
           const responseProdutos = await fetch(
             `${API_BASE_URL}/api/produtos/${user.restaurante}${busca ? `?busca=${busca}` : ""}`,
             {
@@ -67,30 +62,31 @@ export default function EditarProdutos() {
               },
             }
           );
-          const dataProdutos = await responseProdutos.json();
+            const dataProdutos = await responseProdutos.json();
 
-          if (responseProdutos.ok && dataProdutos.success) {
-            setProdutos(dataProdutos.produtos);
-          } else {
-            console.error("Erro ao carregar produtos:", dataProdutos.message || "Erro desconhecido");
-            setProdutos([]); // Limpa produtos em caso de erro
-          }
+            if (responseProdutos.ok && dataProdutos.success) {
+                setProdutos(dataProdutos.produtos);
+            } else {
+                console.error("Erro ao carregar produtos:", dataProdutos.message || "Erro desconhecido");
+                setProdutos([]);
+            }
         } else {
-          console.warn("Nenhum cardápio encontrado para este restaurante ou erro ao buscar cardápio:", dataCardapio.message);
-          setProdutos([]); // Limpa produtos se não houver cardápio
-          setCardapioDoRestauranteId(null); // Define como nulo para desabilitar adição de produtos
+            console.warn("Nenhum cardápio encontrado para este restaurante ou erro ao buscar cardápio:", dataCardapio.message);
+            setProdutos([]);
+            setCardapioDoRestauranteId(null);
         }
       } catch (error) {
-        console.error("Erro geral ao buscar dados do cardápio/produtos:", error);
+        console.error("Erro geral ao buscar dados:", error);
         setProdutos([]);
         setCardapioDoRestauranteId(null);
       } finally {
-        setPageLoading(false); // Finaliza o loading da página
+        setPageLoading(false);
       }
     };
 
     fetchProdutosAndCardapio();
-  }, [user, token, busca, authLoading]); // Dependências do useEffect
+  }, [user, token, busca, authLoading, refreshTrigger]);
+
 
   const abrirModal = (produto = null) => {
     if (produto) {
@@ -118,43 +114,47 @@ export default function EditarProdutos() {
   const fecharModal = () => {
     setModalAberto(false);
     setProdutoEditando(null);
-    // Para forçar a recarga dos produtos após fechar o modal
-    setProdutos([]);
+    setRefreshTrigger(prev => prev + 1); // <<< ATUALIZA O GATILHO PARA FORÇAR O useEffect
   };
 
   const salvarProduto = async () => {
     if (!cardapioDoRestauranteId) {
-      alert("Não foi possível encontrar um cardápio para associar o produto. Certifique-se de que seu restaurante tem um cardápio cadastrado.");
+      alert("Não foi possível encontrar um cardápio para associar o produto.");
       return;
     }
 
-    const produtoParaSalvar = {
-      ...formData,
-      preco: Number.parseFloat(formData.preco),
-      cardapio_id: cardapioDoRestauranteId, // Adiciona o cardapio_id necessário para o backend
-    };
+    const dataToSend = new FormData();
+
+    dataToSend.append("nome", formData.nome);
+    dataToSend.append("descricao", formData.descricao);
+    dataToSend.append("preco", Number.parseFloat(formData.preco).toFixed(2));
+    dataToSend.append("disponivel", formData.disponivel);
+    dataToSend.append("cardapio_id", cardapioDoRestauranteId);
+
+    if (formData.imagem instanceof File) {
+        dataToSend.append("imagem", formData.imagem);
+    } else if (typeof formData.imagem === 'string') {
+        dataToSend.append("imagemUrlExistente", formData.imagem);
+    }
+
 
     try {
       let response;
       if (produtoEditando) {
-        // Edição de produto existente
         response = await fetch(`${API_BASE_URL}/api/produtos/${produtoEditando.id}`, {
           method: "PUT",
           headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`, // Envia o token JWT
+            Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify(produtoParaSalvar),
+          body: dataToSend,
         });
       } else {
-        // Adição de novo produto
         response = await fetch(`${API_BASE_URL}/api/produtos`, {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`, // Envia o token JWT
+            Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify(produtoParaSalvar),
+          body: dataToSend,
         });
       }
 
@@ -162,8 +162,7 @@ export default function EditarProdutos() {
 
       if (response.ok && data.success) {
         alert(data.message);
-        fecharModal();
-        setProdutos([]); // Força o useEffect a recarregar a lista de produtos
+        fecharModal(); // Fecha o modal e dispara o refreshTrigger
       } else {
         alert(data.message || "Erro ao salvar produto.");
         console.error("Erro na resposta da API ao salvar produto:", data);
@@ -183,7 +182,7 @@ export default function EditarProdutos() {
       const response = await fetch(`${API_BASE_URL}/api/produtos/${id}`, {
         method: "DELETE",
         headers: {
-          Authorization: `Bearer ${token}`, // Envia o token JWT
+          Authorization: `Bearer ${token}`,
         },
       });
 
@@ -191,7 +190,9 @@ export default function EditarProdutos() {
 
       if (response.ok && data.success) {
         alert(data.message);
-        setProdutos(produtos.filter((p) => p.id !== id)); // Remove do estado local para atualização imediata
+        setRefreshTrigger(prev => prev + 1); // <<< ATUALIZA O GATILHO APÓS EXCLUSÃO
+        // Ou, se a exclusão for garantida, você pode remover do estado local diretamente:
+        // setProdutos(produtos.filter((p) => p.id !== id));
       } else {
         alert(data.message || "Erro ao excluir produto.");
         console.error("Erro na resposta da API ao excluir produto:", data);
@@ -202,7 +203,7 @@ export default function EditarProdutos() {
     }
   };
 
-  // Condição de carregamento unificada
+
   if (authLoading || pageLoading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -214,7 +215,6 @@ export default function EditarProdutos() {
     );
   }
 
-  // Se não houver usuário logado após o carregamento
   if (!user) {
     return (
       <div className="text-center py-12">
@@ -239,7 +239,7 @@ export default function EditarProdutos() {
         <button
           onClick={() => abrirModal()}
           className="btn-primary flex items-center gap-2"
-          disabled={!cardapioDoRestauranteId} // Desabilita o botão se não houver um cardapio_id
+          disabled={!cardapioDoRestauranteId}
           title={!cardapioDoRestauranteId ? "Um cardápio deve ser criado para este restaurante antes de adicionar produtos." : ""}
         >
           <Plus className="w-5 h-5" />
@@ -261,7 +261,7 @@ export default function EditarProdutos() {
 
       {/* Lista de Produtos */}
       <div className="admin-grid">
-        {produtos.map((produto) => ( // Use 'produtos' diretamente, pois agora vêm do backend
+        {produtos.map((produto) => (
           <div key={produto.id} className="card group">
             <div className="flex items-start gap-4">
               <img
@@ -278,7 +278,7 @@ export default function EditarProdutos() {
                 </p>
                 <div className="flex items-center justify-between mt-3">
                   <span className="text-lg font-bold text-purple-600">
-                    R$ {produto.preco ? produto.preco.toFixed(2) : '0.00'} {/* Adicionado .toFixed(2) e fallback */}
+                    R$ {produto.preco ? produto.preco.toFixed(2) : '0.00'}
                   </span>
                   <span
                     className={`px-2 py-1 text-xs font-medium rounded-full ${
