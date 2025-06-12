@@ -257,7 +257,7 @@ app.post('/api/produtos', authenticateToken, authorizeRestaurantAdmin, upload.si
         const filePath = `product-images/${fileName}`;
 
         const { data: uploadData, error: uploadError } = await supabaseServiceRole.storage
-            .from('cardapio-imagens')
+            .from('cardapio-fotos-app')
             .upload(filePath, imageFile.buffer, {
                 contentType: imageFile.mimetype,
                 upsert: false
@@ -269,7 +269,7 @@ app.post('/api/produtos', authenticateToken, authorizeRestaurantAdmin, upload.si
         }
 
         const { data: publicUrlData } = supabaseServiceRole.storage
-            .from('cardapio-imagens')
+            .from('cardapio-fotos-app')
             .getPublicUrl(filePath);
             
 
@@ -340,7 +340,7 @@ app.put('/api/produtos/:id', authenticateToken, authorizeRestaurantAdmin, upload
         const filePath = `product-images/${fileName}`;
 
         const { data: uploadData, error: uploadError } = await supabaseServiceRole.storage
-            .from('cardapio-imagens')
+            .from('cardapio-fotos-app')
             .upload(filePath, imageFile.buffer, {
                 contentType: imageFile.mimetype,
                 upsert: true
@@ -352,7 +352,7 @@ app.put('/api/produtos/:id', authenticateToken, authorizeRestaurantAdmin, upload
         }
 
         const { data: publicUrlData } = supabaseServiceRole.storage
-            .from('cardapio-imagens')
+            .from('cardapio-fotos-app')
             .getPublicUrl(filePath);
 
         imageUrl = publicUrlData.publicUrl;
@@ -363,7 +363,7 @@ app.put('/api/produtos/:id', authenticateToken, authorizeRestaurantAdmin, upload
             try {
                 const oldFilePath = produtoExistente.imagem.split('/public/')[1];
                 if (oldFilePath) {
-                    await supabaseServiceRole.storage.from('cardapio-imagens').remove([oldFilePath]);
+                    await supabaseServiceRole.storage.from('cardapio-fotos-app').remove([oldFilePath]);
                     console.log("Imagem antiga removida:", oldFilePath);
                 }
             } catch (removeError) {
@@ -397,7 +397,7 @@ app.put('/api/produtos/:id', authenticateToken, authorizeRestaurantAdmin, upload
 });
 
 // DELETE /api/produtos/:id - Excluir um produto
-app.delete('/api/produtos/:id', async (req, res) => {
+app.delete('/api/produtos/:id', authenticateToken, authorizeRestaurantAdmin, async (req, res) => {
   const { id } = req.params;
 
   // Primeiro, verifique se o produto existe e se pertence ao restaurante do usuário logado
